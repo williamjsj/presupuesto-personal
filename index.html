@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Presupuesto Personal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    }
+    .pb-safe-inset {
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+    input, select, button {
+      -webkit-appearance: none;
+      border-radius: 0;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+  <div class="container max-w-md mx-auto pb-safe-inset pb-6">
+    <!-- Encabezado fijo -->
+    <div class="text-center py-6 px-4">
+      <h1 class="text-2xl font-bold text-gray-800">💰 Presupuesto Personal</h1>
+      <p class="text-sm text-gray-600 mt-1">Controla tus finanzas mes a mes</p>
+    </div>
+
+    <!-- Ingreso -->
+    <div class="bg-white rounded-2xl shadow-lg mx-4 mb-4 p-5 border border-gray-100">
+      <h2 class="text-lg font-semibold text-gray-700 mb-3">📥 Ingreso Mensual</h2>
+      <div id="income-section">
+        <div class="flex gap-2">
+          <input
+            type="number"
+            placeholder="Ej: 3000"
+            id="new-income"
+            class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-base"
+            step="1"
+          />
+          <button
+            onclick="setIncome()"
+            class="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium text-sm whitespace-nowrap"
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+      <div id="income-display" class="hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-2xl font-bold text-green-600" id="income-value"></span>
+          <button
+            onclick="resetIncome()"
+            class="text-xs bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-full text-gray-600 transition"
+          >
+            Cambiar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulario de gasto -->
+    <div id="expense-form" class="hidden bg-white rounded-2xl shadow-lg mx-4 mb-4 p-5 border border-gray-100">
+      <h2 class="text-lg font-semibold text-gray-700 mb-4">📤 Nuevo Gasto</h2>
+      <form onsubmit="addExpense(event)" class="space-y-3">
+        <input
+          type="text"
+          placeholder="Descripción del gasto"
+          id="description"
+          class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+          required
+        />
+        <div class="grid grid-cols-2 gap-3">
+          <input
+            type="number"
+            placeholder="Monto"
+            id="amount"
+            step="1"
+            class="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+            required
+          />
+          <select
+            id="category"
+            class="px-4 py-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 text-base"
+          >
+            <option value="housing">🏠 Vivienda</option>
+            <option value="utilities">💡 Servicios</option>
+            <option value="supermarket">🛒 Supermercado</option>
+            <option value="transportation">🚌 Transporte</option>
+            <option value="health">💊 Salud</option>
+            <option value="education">🎓 Educación</option>
+            <option value="credit">💳 Créditos</option>
+            <option value="savings">🏦 Ahorros</option>
+            <option value="leisure">🎉 Salidas y ocio</option>
+            <option value="clothing">👕 Ropa y calzado</option>
+            <option value="pets">🐶 Mascotas</option>
+            <option value="home">🛠️ Hogar</option>
+            <option value="gifts">💝 Regalos</option>
+            <option value="travel">✈️ Viajes</option>
+            <option value="work">💼 Trabajo</option>
+          </select>
+        </div>
+        <button
+          type="submit"
+          class="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 transition font-semibold text-base shadow"
+        >
+          + Agregar Gasto
+        </button>
+      </form>
+    </div>
+
+    <!-- Botón de reset -->
+    <div id="reset-section" class="hidden mx-4 mb-4">
+      <button
+        onclick="resetAll()"
+        class="w-full py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition"
+      >
+        🗑️ Reiniciar mes (eliminar todos los gastos)
+      </button>
+    </div>
+
+    <!-- Pestañas -->
+    <div id="tabs" class="hidden flex bg-white rounded-2xl shadow-lg mx-4 mb-4 overflow-hidden border border-gray-100">
+      <button onclick="setActiveTab('summary')" class="flex-1 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 transition" id="tab-summary">
+        Resumen
+      </button>
+      <button onclick="setActiveTab('history')" class="flex-1 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 transition" id="tab-history">
+        Historial
+      </button>
+    </div>
+
+    <!-- Resumen -->
+    <div id="summary-tab" class="mx-4 hidden">
+      <div class="bg-white rounded-2xl shadow-lg p-5 mb-4 border border-gray-100">
+        <div class="text-center mb-4">
+          <div class="text-sm text-gray-600">Saldo Disponible</div>
+          <div class="text-3xl font-bold mt-1" id="balance-value"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 text-center">
+          <div>
+            <div class="text-sm text-green-600 font-medium">Ingresos</div>
+            <div class="text-lg font-semibold text-gray-800" id="total-income"></div>
+          </div>
+          <div>
+            <div class="text-sm text-red-600 font-medium">Gastos</div>
+            <div class="text-lg font-semibold text-gray-800" id="total-expenses"></div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl shadow-lg p-5 border border-gray-100">
+        <h3 class="font-semibold text-gray-800 mb-4">Gastos por Categoría</h3>
+        <div id="categories-list" class="space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- Historial -->
+    <div id="history-tab" class="mx-4 hidden">
+      <div class="bg-white rounded-2xl shadow-lg p-5 border border-gray-100">
+        <h3 class="font-semibold text-gray-800 mb-4">Historial de Gastos</h3>
+        <div id="expenses-list" class="space-y-2 max-h-64 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-8 px-4">
+      <p class="text-xs text-gray-500">
+        Desarrollado por <span class="font-semibold text-gray-700">William Salazar</span>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Formatear como $1.500
+    const formatCurrency = (value) => {
+      return new Intl.NumberFormat("es-ES", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(Math.round(value)).replace("US$", "$");
+    };
+
+    // Estado
+    let income = parseFloat(localStorage.getItem("monthlyIncome")) || 0;
+    let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
+
+    // Elementos
+    const incomeSection = document.getElementById("income-section");
+    const incomeDisplay = document.getElementById("income-display");
+    const incomeValue = document.getElementById("income-value");
+    const expenseForm = document.getElementById("expense-form");
+    const tabs = document.getElementById("tabs");
+    const resetSection = document.getElementById("reset-section");
+
+    // Mostrar ingreso
+    function updateIncomeDisplay() {
+      if (income > 0) {
+        incomeValue.textContent = formatCurrency(income);
+        incomeSection.classList.add("hidden");
+        incomeDisplay.classList.remove("hidden");
+        expenseForm.classList.remove("hidden");
+        tabs.classList.remove("hidden");
+        resetSection.classList.remove("hidden");
+        setActiveTab("summary");
+      }
+    }
+
+    // Guardar ingreso
+    function setIncome() {
+      const value = Math.round(parseFloat(document.getElementById("new-income").value) || 0);
+      if (value > 0) {
+        income = value;
+        localStorage.setItem("monthlyIncome", income);
+        updateIncomeDisplay();
+        renderAll();
+      }
+    }
+
+    // Resetear ingreso
+    function resetIncome() {
+      income = 0;
+      localStorage.removeItem("monthlyIncome");
+      incomeDisplay.classList.add("hidden");
+      incomeSection.classList.remove("hidden");
+      expenseForm.classList.add("hidden");
+      tabs.classList.add("hidden");
+      resetSection.classList.add("hidden");
+    }
+
+    // Agregar gasto
+    function addExpense(e) {
+      e.preventDefault();
+      const description = document.getElementById("description").value.trim();
+      const amount = Math.round(parseFloat(document.getElementById("amount").value) || 0);
+      const category = document.getElementById("category").value;
+
+      if (!description || amount <= 0) return;
+
+      const newExpense = {
+        id: Date.now(),
+        description,
+        amount,
+        category,
+        date: new Date().toLocaleDateString("es-ES"),
+      };
+
+      expenses.push(newExpense);
+      localStorage.setItem("expenses", JSON.stringify(expenses));
+      document.getElementById("description").value = "";
+      document.getElementById("amount").value = "";
+      renderAll();
+    }
+
+    // Eliminar gasto
+    function deleteExpense(id) {
+      expenses = expenses.filter(exp => exp.id !== id);
+      localStorage.setItem("expenses", JSON.stringify(expenses));
+      renderAll();
+    }
+
+    // 🔴 Botón de reset
+    function resetAll() {
+      if (confirm("¿Estás seguro de reiniciar el mes? Se eliminarán todos los gastos.")) {
+        expenses = [];
+        localStorage.setItem("expenses", JSON.stringify(expenses));
+        renderAll();
+      }
+    }
+
+    // Renderizar categorías
+    function renderCategories() {
+      const container = document.getElementById("categories-list");
+      const categoryMap = {
+        housing: "🏠 Vivienda",
+        utilities: "💡 Servicios",
+        supermarket: "🛒 Supermercado",
+        transportation: "🚌 Transporte",
+        health: "💊 Salud",
+        education: "🎓 Educación",
+        credit: "💳 Créditos",
+        savings: "🏦 Ahorros",
+        leisure: "🎉 Salidas y ocio",
+        clothing: "👕 Ropa y calzado",
+        pets: "🐶 Mascotas",
+        home: "🛠️ Hogar",
+        gifts: "💝 Regalos",
+        travel: "✈️ Viajes",
+        work: "💼 Trabajo",
+      };
+
+      const totals = {};
+      Object.keys(categoryMap).forEach(key => totals[key] = 0);
+      expenses.forEach(exp => totals[exp.category] += exp.amount);
+
+      container.innerHTML = "";
+      Object.keys(totals)
+        .filter(cat => totals[cat] > 0)
+        .forEach(cat => {
+          const div = document.createElement("div");
+          div.className = "flex items-center justify-between p-3 bg-gray-50 rounded-xl";
+          div.innerHTML = `
+            <div class="flex items-center gap-3">
+              <span class="text-xl">${categoryMap[cat].split(" ")[0]}</span>
+              <span class="text-gray-800 font-medium">${categoryMap[cat].split(" ").slice(1).join(" ")}</span>
+            </div>
+            <div class="text-lg font-semibold text-gray-700">${formatCurrency(totals[cat])}</div>
+          `;
+          container.appendChild(div);
+        });
+
+      if (container.children.length === 0) {
+        container.innerHTML = `<p class="text-gray-500 text-center py-4">Sin gastos registrados.</p>`;
+      }
+    }
+
+    // Renderizar historial
+    function renderHistory() {
+      const container = document.getElementById("expenses-list");
+      container.innerHTML = "";
+
+      if (expenses.length === 0) {
+        container.innerHTML = `<p class="text-gray-500 text-center py-4">Sin gastos aún.</p>`;
+        return;
+      }
+
+      [...expenses].reverse().forEach(exp => {
+        const div = document.createElement("div");
+        div.className = "flex items-center justify-between p-3 bg-gray-50 rounded-xl text-sm";
+        div.innerHTML = `
+          <div class="flex-1">
+            <div class="font-medium text-gray-800 truncate">${exp.description}</div>
+            <div class="text-gray-500">${getCategoryLabel(exp.category)} • ${formatDate(exp.date)}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-gray-700">${formatCurrency(exp.amount)}</span>
+            <button onclick="deleteExpense(${exp.id})" class="text-red-500 hover:text-red-700 text-lg w-8 h-8 flex items-center justify-center bg-red-100 rounded-full transition">×</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function getCategoryLabel(value) {
+      const map = {
+        housing: "🏠 Vivienda",
+        utilities: "💡 Servicios",
+        supermarket: "🛒 Supermercado",
+        transportation: "🚌 Transporte",
+        health: "💊 Salud",
+        education: "🎓 Educación",
+        credit: "💳 Créditos",
+        savings: "🏦 Ahorros",
+        leisure: "🎉 Salidas y ocio",
+        clothing: "👕 Ropa y calzado",
+        pets: "🐶 Mascotas",
+        home: "🛠️ Hogar",
+        gifts: "💝 Regalos",
+        travel: "✈️ Viajes",
+        work: "💼 Trabajo",
+      };
+      return map[value] || value;
+    }
+
+    function formatDate(dateString) {
+      return dateString;
+    }
+
+    function setActiveTab(tab) {
+      document.getElementById("summary-tab").classList.add("hidden");
+      document.getElementById("history-tab").classList.add("hidden");
+      document.getElementById("tab-summary").className = "flex-1 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 transition";
+      document.getElementById("tab-history").className = "flex-1 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100 transition";
+
+      if (tab === "summary") {
+        document.getElementById("tab-summary").className += " bg-blue-600 text-white";
+        document.getElementById("summary-tab").classList.remove("hidden");
+      } else {
+        document.getElementById("tab-history").className += " bg-blue-600 text-white";
+        document.getElementById("history-tab").classList.remove("hidden");
+      }
+    }
+
+    function renderAll() {
+      if (income > 0) {
+        const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+        const balance = income - totalExpenses;
+
+        document.getElementById("balance-value").className = balance >= 0 ? "text-3xl font-bold mt-1 text-green-600" : "text-3xl font-bold mt-1 text-red-600";
+        document.getElementById("balance-value").textContent = formatCurrency(balance);
+        document.getElementById("total-income").textContent = formatCurrency(income);
+        document.getElementById("total-expenses").textContent = formatCurrency(totalExpenses);
+
+        renderCategories();
+        renderHistory();
+      }
+    }
+
+    // Reinicio mensual
+    const lastVisit = localStorage.getItem("lastVisit");
+    const currentMonth = new Date().getMonth();
+    if (lastVisit) {
+      const lastMonth = new Date(lastVisit).getMonth();
+      if (lastMonth !== currentMonth) {
+        expenses = [];
+        localStorage.setItem("expenses", JSON.stringify(expenses));
+      }
+    }
+    localStorage.setItem("lastVisit", new Date().toISOString());
+
+    // Inicializar sin preguntar nombre
+    updateIncomeDisplay();
+    renderAll();
+  </script>
+</body>
+</html>
