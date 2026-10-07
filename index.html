@@ -83,9 +83,11 @@
             id="category"
             class="px-4 py-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 text-base"
           >
+            <option value="daughter_allowance">👧 Mensualidad Hija</option>
+            <option value="groceries">🥫 Víveres y Abarrotes</option>
+            <option value="fresh_produce">🥦 Frutas, Verduras y Vegetales</option>
             <option value="housing">🏠 Vivienda</option>
             <option value="utilities">💡 Servicios</option>
-            <option value="supermarket">🛒 Supermercado</option>
             <option value="transportation">🚌 Transporte</option>
             <option value="health">💊 Salud</option>
             <option value="education">🎓 Educación</option>
@@ -107,16 +109,6 @@
           + Agregar Gasto
         </button>
       </form>
-    </div>
-
-    <!-- Botón de reset -->
-    <div id="reset-section" class="hidden mx-4 mb-4">
-      <button
-        onclick="resetAll()"
-        class="w-full py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition"
-      >
-        🗑️ Reiniciar mes (eliminar todos los gastos)
-      </button>
     </div>
 
     <!-- Pestañas -->
@@ -161,6 +153,23 @@
       </div>
     </div>
 
+    <!-- Acciones de fin de mes y respaldo -->
+    <div id="actions-section" class="hidden mx-4 mb-4 space-y-2">
+      <button
+        onclick="downloadExtract()"
+        class="w-full py-3 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition flex items-center justify-center gap-2 shadow-sm"
+      >
+        📄 Descargar Extracto Mensual (Excel / CSV)
+      </button>
+      
+      <button
+        onclick="resetAll()"
+        class="w-full py-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition"
+      >
+        🗑️ Reiniciar mes (eliminar todos los gastos)
+      </button>
+    </div>
+
     <!-- Footer -->
     <div class="text-center mt-8 px-4">
       <p class="text-xs text-gray-500">
@@ -170,7 +179,29 @@
   </div>
 
   <script>
-    // Formatear como $1.500
+    // Map de categorías global
+    const categoryMap = {
+      daughter_allowance: "👧 Mensualidad Hija",
+      groceries: "罐 Víveres y Abarrotes",
+      fresh_produce: "🥦 Frutas, Verduras y Vegetales",
+      housing: "🏠 Vivienda",
+      utilities: "💡 Servicios",
+      transportation: "🚌 Transporte",
+      health: "💊 Salud",
+      education: "🎓 Educación",
+      credit: "💳 Créditos",
+      savings: "🏦 Ahorros",
+      leisure: "🎉 Salidas y ocio",
+      clothing: "👕 Ropa y calzado",
+      pets: "🐶 Mascotas",
+      home: "🛠️ Hogar",
+      gifts: "💝 Regalos",
+      travel: "✈️ Viajes",
+      work: "💼 Trabajo",
+      supermarket: "🛒 Supermercado" // Mantenido por retrocompatibilidad
+    };
+
+    // Formatear moneda
     const formatCurrency = (value) => {
       return new Intl.NumberFormat("es-ES", {
         style: "currency",
@@ -184,15 +215,14 @@
     let income = parseFloat(localStorage.getItem("monthlyIncome")) || 0;
     let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
 
-    // Elementos
+    // Elementos DOM
     const incomeSection = document.getElementById("income-section");
     const incomeDisplay = document.getElementById("income-display");
     const incomeValue = document.getElementById("income-value");
     const expenseForm = document.getElementById("expense-form");
     const tabs = document.getElementById("tabs");
-    const resetSection = document.getElementById("reset-section");
+    const actionsSection = document.getElementById("actions-section");
 
-    // Mostrar ingreso
     function updateIncomeDisplay() {
       if (income > 0) {
         incomeValue.textContent = formatCurrency(income);
@@ -200,12 +230,11 @@
         incomeDisplay.classList.remove("hidden");
         expenseForm.classList.remove("hidden");
         tabs.classList.remove("hidden");
-        resetSection.classList.remove("hidden");
+        actionsSection.classList.remove("hidden");
         setActiveTab("summary");
       }
     }
 
-    // Guardar ingreso
     function setIncome() {
       const value = Math.round(parseFloat(document.getElementById("new-income").value) || 0);
       if (value > 0) {
@@ -216,7 +245,6 @@
       }
     }
 
-    // Resetear ingreso
     function resetIncome() {
       income = 0;
       localStorage.removeItem("monthlyIncome");
@@ -224,10 +252,9 @@
       incomeSection.classList.remove("hidden");
       expenseForm.classList.add("hidden");
       tabs.classList.add("hidden");
-      resetSection.classList.add("hidden");
+      actionsSection.classList.add("hidden");
     }
 
-    // Agregar gasto
     function addExpense(e) {
       e.preventDefault();
       const description = document.getElementById("description").value.trim();
@@ -251,75 +278,95 @@
       renderAll();
     }
 
-    // Eliminar gasto
     function deleteExpense(id) {
       expenses = expenses.filter(exp => exp.id !== id);
       localStorage.setItem("expenses", JSON.stringify(expenses));
       renderAll();
     }
 
-    // 🔴 Botón de reset
     function resetAll() {
-      if (confirm("¿Estás seguro de reiniciar el mes? Se eliminarán todos los gastos.")) {
+      if (confirm("¿Deseas reiniciar el mes? Asegúrate de descargar el extracto antes si no lo has hecho.")) {
         expenses = [];
         localStorage.setItem("expenses", JSON.stringify(expenses));
         renderAll();
       }
     }
 
-    // Renderizar categorías
+    // 📄 Descarga de extracto en CSV/Excel
+    function downloadExtract() {
+      if (expenses.length === 0) {
+        alert("No hay gastos registrados para exportar.");
+        return;
+      }
+
+      const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const balance = income - totalExpenses;
+
+      let csvContent = "\uFEFF"; // BOM UTF-8 para Excel
+      csvContent += "EXTRACTO DE PRESUPUESTO PERSONAL\n";
+      csvContent += `Fecha del Reporte:;${new Date().toLocaleDateString("es-ES")}\n`;
+      csvContent += `Ingreso Mensual:;${income}\n`;
+      csvContent += `Total Gastos:;${totalExpenses}\n`;
+      csvContent += `Saldo Restante:;${balance}\n\n`;
+      
+      csvContent += "Fecha;Descripción;Categoría;Monto\n";
+
+      expenses.forEach(exp => {
+        const catLabel = getCategoryLabel(exp.category).replace(/^[^\s]+\s/, ''); // Remueve el emoji para orden
+        csvContent += `"${exp.date}";"${exp.description.replace(/"/g, '""')}";"${catLabel}";${exp.amount}\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Extracto_Gastos_${new Date().toISOString().slice(0, 7)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
     function renderCategories() {
       const container = document.getElementById("categories-list");
-      const categoryMap = {
-        housing: "🏠 Vivienda",
-        utilities: "💡 Servicios",
-        supermarket: "🛒 Supermercado",
-        transportation: "🚌 Transporte",
-        health: "💊 Salud",
-        education: "🎓 Educación",
-        credit: "💳 Créditos",
-        savings: "🏦 Ahorros",
-        leisure: "🎉 Salidas y ocio",
-        clothing: "👕 Ropa y calzado",
-        pets: "🐶 Mascotas",
-        home: "🛠️ Hogar",
-        gifts: "💝 Regalos",
-        travel: "✈️ Viajes",
-        work: "💼 Trabajo",
-      };
-
       const totals = {};
+      
       Object.keys(categoryMap).forEach(key => totals[key] = 0);
-      expenses.forEach(exp => totals[exp.category] += exp.amount);
+      expenses.forEach(exp => {
+        if (!totals[exp.category]) totals[exp.category] = 0;
+        totals[exp.category] += exp.amount;
+      });
 
       container.innerHTML = "";
       Object.keys(totals)
         .filter(cat => totals[cat] > 0)
         .forEach(cat => {
+          const label = getCategoryLabel(cat);
+          const emoji = label.split(" ")[0];
+          const textName = label.split(" ").slice(1).join(" ");
+
           const div = document.createElement("div");
           div.className = "flex items-center justify-between p-3 bg-gray-50 rounded-xl";
           div.innerHTML = `
             <div class="flex items-center gap-3">
-              <span class="text-xl">${categoryMap[cat].split(" ")[0]}</span>
-              <span class="text-gray-800 font-medium">${categoryMap[cat].split(" ").slice(1).join(" ")}</span>
+              <span class="text-xl">${emoji}</span>
+              <span class="text-gray-800 font-medium text-sm">${textName}</span>
             </div>
-            <div class="text-lg font-semibold text-gray-700">${formatCurrency(totals[cat])}</div>
+            <div class="text-base font-semibold text-gray-700">${formatCurrency(totals[cat])}</div>
           `;
           container.appendChild(div);
         });
 
       if (container.children.length === 0) {
-        container.innerHTML = `<p class="text-gray-500 text-center py-4">Sin gastos registrados.</p>`;
+        container.innerHTML = `<p class="text-gray-500 text-center py-4 text-sm">Sin gastos registrados.</p>`;
       }
     }
 
-    // Renderizar historial
     function renderHistory() {
       const container = document.getElementById("expenses-list");
       container.innerHTML = "";
 
       if (expenses.length === 0) {
-        container.innerHTML = `<p class="text-gray-500 text-center py-4">Sin gastos aún.</p>`;
+        container.innerHTML = `<p class="text-gray-500 text-center py-4 text-sm">Sin gastos aún.</p>`;
         return;
       }
 
@@ -327,13 +374,13 @@
         const div = document.createElement("div");
         div.className = "flex items-center justify-between p-3 bg-gray-50 rounded-xl text-sm";
         div.innerHTML = `
-          <div class="flex-1">
+          <div class="flex-1 pr-2">
             <div class="font-medium text-gray-800 truncate">${exp.description}</div>
-            <div class="text-gray-500">${getCategoryLabel(exp.category)} • ${formatDate(exp.date)}</div>
+            <div class="text-xs text-gray-500">${getCategoryLabel(exp.category)} • ${exp.date}</div>
           </div>
           <div class="flex items-center gap-2">
-            <span class="font-semibold text-gray-700">${formatCurrency(exp.amount)}</span>
-            <button onclick="deleteExpense(${exp.id})" class="text-red-500 hover:text-red-700 text-lg w-8 h-8 flex items-center justify-center bg-red-100 rounded-full transition">×</button>
+            <span class="font-semibold text-gray-700 whitespace-nowrap">${formatCurrency(exp.amount)}</span>
+            <button onclick="deleteExpense(${exp.id})" class="text-red-500 hover:text-red-700 text-lg w-7 h-7 flex items-center justify-center bg-red-100 rounded-full transition">×</button>
           </div>
         `;
         container.appendChild(div);
@@ -341,28 +388,7 @@
     }
 
     function getCategoryLabel(value) {
-      const map = {
-        housing: "🏠 Vivienda",
-        utilities: "💡 Servicios",
-        supermarket: "🛒 Supermercado",
-        transportation: "🚌 Transporte",
-        health: "💊 Salud",
-        education: "🎓 Educación",
-        credit: "💳 Créditos",
-        savings: "🏦 Ahorros",
-        leisure: "🎉 Salidas y ocio",
-        clothing: "👕 Ropa y calzado",
-        pets: "🐶 Mascotas",
-        home: "🛠️ Hogar",
-        gifts: "💝 Regalos",
-        travel: "✈️ Viajes",
-        work: "💼 Trabajo",
-      };
-      return map[value] || value;
-    }
-
-    function formatDate(dateString) {
-      return dateString;
+      return categoryMap[value] || value;
     }
 
     function setActiveTab(tab) {
@@ -395,19 +421,7 @@
       }
     }
 
-    // Reinicio mensual
-    const lastVisit = localStorage.getItem("lastVisit");
-    const currentMonth = new Date().getMonth();
-    if (lastVisit) {
-      const lastMonth = new Date(lastVisit).getMonth();
-      if (lastMonth !== currentMonth) {
-        expenses = [];
-        localStorage.setItem("expenses", JSON.stringify(expenses));
-      }
-    }
-    localStorage.setItem("lastVisit", new Date().toISOString());
-
-    // Inicializar sin preguntar nombre
+    // Inicializar
     updateIncomeDisplay();
     renderAll();
   </script>
